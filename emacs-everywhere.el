@@ -150,7 +150,6 @@ APP is an `emacs-everywhere-app' struct."
 
 ;;;###autoload
 (add-hook 'server-visit-hook #'emacs-everywhere-initialise)
-(add-hook 'server-done-hook #'emacs-everywhere-finish)
 
 (defvar emacs-everywhere-mode-initial-map
   (let ((keymap (make-sparse-keymap)))
