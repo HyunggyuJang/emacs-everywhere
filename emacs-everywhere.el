@@ -93,6 +93,21 @@ Formatted with the app name, and truncated window name."
   :type '(repeat regexp)
   :group 'emacs-everywhere)
 
+(defcustom emacs-everywhere-insert-delay-pre 0.01
+  "Delay for the clipboard contents to be properly set before capturing current selection."
+  :type 'float
+  :group 'emacs-everywhere)
+
+(defcustom emacs-everywhere-insert-delay 0.01
+  "Delay for the clipboard contents to be properly set in `emacs-everywhere-insert-selection'."
+  :type 'float
+  :group 'emacs-everywhere)
+
+(defcustom emacs-everywhere-finish-delay 0.01
+  "Delay for the clipboard contents to be properly set in `emacs-everywhere-finish'."
+  :type 'float
+  :group 'emacs-everywhere)
+
 ;; Semi-internal variables
 
 (defvar-local emacs-everywhere-current-app nil
@@ -204,7 +219,7 @@ Never paste content when ABORT is non-nil."
           (write-file buffer-file-name)
           (pp (buffer-string))
           (call-process "xclip" nil nil nil "-selection" "clipboard" buffer-file-name))))
-    (sleep-for 0.01) ; prevents weird multi-second pause, lets clipboard info propagate
+    (sleep-for emacs-everywhere-finish-delay) ; prevents weird multi-second pause, lets clipboard info propagate
     (let ((window-id (emacs-everywhere-app-id emacs-everywhere-current-app)))
       (if (eq system-type 'darwin)
           (call-process "osascript" nil nil nil
@@ -383,9 +398,10 @@ return windowTitle"))
   "Insert the last text selection into the buffer."
   (if (eq system-type 'darwin)
       (progn
+        (sleep-for emacs-everywhere-insert-delay-pre) ;Make sure currently selected one propagate to clipboard
         (call-process "osascript" nil nil nil
                       "-e" "tell application \"System Events\" to keystroke \"c\" using command down")
-        (sleep-for 0.01) ; lets clipboard info propagate
+        (sleep-for emacs-everywhere-insert-delay) ; lets clipboard info propagate
         (yank))
     (when-let ((selection (gui-get-selection 'PRIMARY 'UTF8_STRING)))
       (gui-backend-set-selection 'PRIMARY "")
