@@ -93,6 +93,11 @@ Formatted with the app name, and truncated window name."
   :type '(repeat regexp)
   :group 'emacs-everywhere)
 
+(defcustom emacs-everywhere-finish-delay 0.01
+  "Delay for the clipboard contents to be properly set in `emacs-everywhere-finish'."
+  :type 'float
+  :group 'emacs-everywhere)
+
 ;; Semi-internal variables
 
 (defvar-local emacs-everywhere-current-app nil
@@ -204,7 +209,7 @@ Never paste content when ABORT is non-nil."
           (write-file buffer-file-name)
           (pp (buffer-string))
           (call-process "xclip" nil nil nil "-selection" "clipboard" buffer-file-name))))
-    (sleep-for 0.01) ; prevents weird multi-second pause, lets clipboard info propagate
+    (sleep-for emacs-everywhere-finish-delay) ; prevents weird multi-second pause, lets clipboard info propagate
     (let ((window-id (emacs-everywhere-app-id emacs-everywhere-current-app)))
       (if (eq system-type 'darwin)
           (call-process "osascript" nil nil nil
