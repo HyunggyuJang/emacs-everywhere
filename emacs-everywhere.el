@@ -93,7 +93,7 @@ Formatted with the app name, and truncated window name."
   :type '(repeat regexp)
   :group 'emacs-everywhere)
 
-(defcustom emacs-everywhere-finish-delay 0.01
+(defcustom emacs-everywhere-finish-delay 0.02
   "Delay for the clipboard contents to be properly set in `emacs-everywhere-finish'."
   :type 'float
   :group 'emacs-everywhere)
