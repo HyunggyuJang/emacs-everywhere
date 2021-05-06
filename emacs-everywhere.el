@@ -34,7 +34,7 @@
   :group 'emacs-everywhere)
 
 (defcustom emacs-everywhere-markdown-windows
-  '("Stack Exchange" "Stack Overflow" "Reddit" ; Sites
+  '("Zulip" "Stack Exchange" "Stack Overflow" "Reddit" ; Sites
     "Pull Request" "Issue" "Comparing .*\\.\\.\\." ; Github
     "Discord")
   "For use with `emacs-everywhere-markdown-p'.
@@ -49,6 +49,12 @@ Patterns which are matched against the app name."
   :type '(rep string)
   :group 'emacs-everywhere)
 
+(defcustom emacs-everywhere-force-use-org-mode nil
+  "Whether use `org-mode' as editiong mode or not.
+This force to set `org-mode' even if it is markdown flavor site."
+  :type 'boolean
+  :group 'emacs-everywhere)
+
 (defcustom emacs-everywhere-frame-name-format "Emacs Everywhere :: %s — %s"
   "Format string used to produce the frame name.
 Formatted with the app name, and truncated window name."
@@ -59,7 +65,7 @@ Formatted with the app name, and truncated window name."
   `(emacs-everywhere-set-frame-name
     emacs-everywhere-set-frame-position
     ,(cond
-      ((executable-find "pandoc") #'org-mode)
+      ((or emacs-everywhere-force-use-org-mode (executable-find "pandoc")) #'org-mode)
       ((fboundp 'markdown-mode) #'emacs-everywhere-major-mode-org-or-markdown)
       (t #'text-mode))
     emacs-everywhere-insert-selection
