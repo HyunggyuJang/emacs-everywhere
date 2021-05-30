@@ -99,9 +99,10 @@ Formatted with the app name, and truncated window name."
   :group 'emacs-everywhere)
 
 (defcustom emacs-everywhere-determine-mode-alist
-  '((#'emacs-everywhere-markdown-p . #'markdown-mode)
-    (#'emacs-everywhere-latex-p . #'latex-mode)
-    ((lambda () t) #'org-mode))
+  (list
+   (cons 'emacs-everywhere-markdown-p 'markdown-mode)
+   (cons 'emacs-everywhere-latex-p 'latex-mode)
+   (cons (lambda () t) #'org-mode))
   "List to determine major mode for emacs-everywhere."
   :type 'list
   :group 'emacs-everywhere)
@@ -502,9 +503,12 @@ Should end in a newline to avoid interfering with the buffer content."
     (insert emacs-everywhere-latex-preamble)
     (goto-char (point-max))
     (insert "\n\\end{document}")
+    (save-buffer)
     (let ((tname buffer-file-name))
       (call-process "pdflatex" nil  nil nil tname)
-      (call-process "pdf2svg" nil  nil nil (concat tname ".pdf") tname))))
+      (call-process "pdf2svg" nil  nil nil (concat tname ".pdf") (concat tname ".svg"))
+      (erase-buffer)
+      (insert-file-contents (concat tname ".svg")))))
 
 (provide 'emacs-everywhere)
 ;;; emacs-everywhere.el ends here
