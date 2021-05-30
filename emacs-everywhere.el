@@ -88,18 +88,22 @@ Formatted with the app name, and truncated window name."
   :group 'emacs-everywhere)
 
 (defcustom emacs-everywhere-init-hooks
-  `(emacs-everywhere-set-frame-name
+  '(emacs-everywhere-set-frame-name
     emacs-everywhere-set-frame-position
-    ,(cond
-      ((executable-find "pandoc") #'org-mode)
-      ((fboundp 'markdown-mode) #'emacs-everywhere-major-mode-org-or-markdown)
-      ((fboundp 'latex-mode) #'emacs-everywhere-major-mode-org-or-latex)
-      (t #'text-mode))
+    emacs-everywhere-major-mode
     emacs-everywhere-insert-selection
     emacs-everywhere-remove-trailing-whitespace
     emacs-everywhere-init-spell-check)
   "Hooks to be run before function `emacs-everywhere-mode'."
   :type 'hook
+  :group 'emacs-everywhere)
+
+(defcustom emacs-everywhere-determine-mode-alist
+  '((#'emacs-everywhere-markdown-p . #'markdown-mode)
+    (#'emacs-everywhere-latex-p . #'latex-mode)
+    ((lambda () t) #'org-mode))
+  "List to determine major mode for emacs-everywhere."
+  :type 'list
   :group 'emacs-everywhere)
 
 (defcustom emacs-everywhere-final-hooks
@@ -444,39 +448,32 @@ return windowTitle"))
 
 (defun emacs-everywhere-markdown-p ()
   "Return t if the original window is recognised as markdown-flavoured."
-  (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
-        (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
-    (or (cl-some (lambda (pattern)
-                   (string-match-p pattern title))
-                 emacs-everywhere-markdown-windows)
-        (cl-some (lambda (pattern)
-                   (string-match-p pattern class))
-                 emacs-everywhere-markdown-apps))))
+  (and (fboundp 'markdown-mode)
+       (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
+             (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
+         (or (cl-some (lambda (pattern)
+                        (string-match-p pattern title))
+                      emacs-everywhere-markdown-windows)
+             (cl-some (lambda (pattern)
+                        (string-match-p pattern class))
+                      emacs-everywhere-markdown-apps)))))
 
 (defun emacs-everywhere-latex-p ()
   "Return t if the original window is recognised as markdown-flavoured."
-  (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
-        (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
-    (or (cl-some (lambda (pattern)
-                   (string-match-p pattern title))
-                 emacs-everywhere-latex-windows)
-        (cl-some (lambda (pattern)
-                   (string-match-p pattern class))
-                 emacs-everywhere-latex-apps))))
+  (and (fboundp 'latex-mode)
+       (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
+             (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
+         (or (cl-some (lambda (pattern)
+                        (string-match-p pattern title))
+                      emacs-everywhere-latex-windows)
+             (cl-some (lambda (pattern)
+                        (string-match-p pattern class))
+                      emacs-everywhere-latex-apps)))))
 
-(defun emacs-everywhere-major-mode-org-or-markdown ()
-  "Use markdow-mode, when window is recognised as markdown-flavoured.
-Otherwise use `org-mode'."
-  (if (emacs-everywhere-markdown-p)
-      (markdown-mode)
-    (org-mode)))
-
-(defun emacs-everywhere-major-mode-org-or-latex ()
-  "Use latex-mode, when window is recognised as latex-flavoured.
-Otherwise use `org-mode'."
-  (if (emacs-everywhere-latex-p)
-      (latex-mode)
-    (org-mode)))
+(defun emacs-everywhere-major-mode ()
+  "Determine major mode based on context."
+  (cl-loop for i in emacs-everywhere-determine-mode-alist
+           if (funcall (car-safe i)) return (funcall (cdr i))))
 
 (defcustom emacs-everywhere-org-export-options
   "#+property: header-args :exports both
