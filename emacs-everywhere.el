@@ -109,8 +109,7 @@ Formatted with the app name, and truncated window name."
 
 (defcustom emacs-everywhere-final-hooks
   '(emacs-everywhere-remove-trailing-whitespace
-    emacs-everywhere-return-converted-org-to-gfm
-    emacs-everywhere-return-converted-latex-to-svg)
+    emacs-everywhere-return-converted-org-to-gfm)
   "Hooks to be run just before content is copied."
   :type 'hook
   :group 'emacs-everywhere)
