@@ -34,7 +34,8 @@
   :group 'emacs-everywhere)
 
 (defcustom emacs-everywhere-markdown-windows
-  '("Zulip" "Stack Exchange" "Stack Overflow" "Reddit" ; Sites
+  '("Zulip" "Stack Exchange" "Stack Overflow" ; Sites
+    "^(7) " ; Reddit
     "Pull Request" "Issue" "Comparing .*\\.\\.\\." ; Github
     "Discord")
   "For use with `emacs-everywhere-markdown-p'.
@@ -448,7 +449,7 @@ return windowTitle"))
 
 (defun emacs-everywhere-markdown-p ()
   "Return t if the original window is recognised as markdown-flavoured."
-  (and (fboundp 'markdown-mode)
+  (and (not emacs-everywhere-force-use-org-mode) (fboundp 'markdown-mode)
        (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
              (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
          (or (cl-some (lambda (pattern)
