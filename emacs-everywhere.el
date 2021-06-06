@@ -101,8 +101,11 @@ Formatted with the app name, and truncated window name."
 
 (defcustom emacs-everywhere-determine-mode-alist
   (list
-   (cons 'emacs-everywhere-markdown-p 'markdown-mode)
-   (cons 'emacs-everywhere-latex-p 'latex-mode)
+   (cons (lambda () (and (not emacs-everywhere-force-use-org-mode)
+                         (fboundp 'markdown-mode)
+                         (emacs-everywhere-markdown-p))) 'markdown-mode)
+   (cons (lambda () (and (fboundp 'latex-mode)
+                         (emacs-everywhere-latex-p))) 'latex-mode)
    (cons (lambda () t) #'org-mode))
   "List to determine major mode for emacs-everywhere."
   :type 'list
@@ -449,27 +452,25 @@ return windowTitle"))
 
 (defun emacs-everywhere-markdown-p ()
   "Return t if the original window is recognised as markdown-flavoured."
-  (and (not emacs-everywhere-force-use-org-mode) (fboundp 'markdown-mode)
-       (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
-             (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
-         (or (cl-some (lambda (pattern)
-                        (string-match-p pattern title))
-                      emacs-everywhere-markdown-windows)
-             (cl-some (lambda (pattern)
-                        (string-match-p pattern class))
-                      emacs-everywhere-markdown-apps)))))
+  (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
+        (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
+    (or (cl-some (lambda (pattern)
+                   (string-match-p pattern title))
+                 emacs-everywhere-markdown-windows)
+        (cl-some (lambda (pattern)
+                   (string-match-p pattern class))
+                 emacs-everywhere-markdown-apps))))
 
 (defun emacs-everywhere-latex-p ()
   "Return t if the original window is recognised as markdown-flavoured."
-  (and (fboundp 'latex-mode)
-       (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
-             (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
-         (or (cl-some (lambda (pattern)
-                        (string-match-p pattern title))
-                      emacs-everywhere-latex-windows)
-             (cl-some (lambda (pattern)
-                        (string-match-p pattern class))
-                      emacs-everywhere-latex-apps)))))
+  (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
+        (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
+    (or (cl-some (lambda (pattern)
+                   (string-match-p pattern title))
+                 emacs-everywhere-latex-windows)
+        (cl-some (lambda (pattern)
+                   (string-match-p pattern class))
+                 emacs-everywhere-latex-apps))))
 
 (defun emacs-everywhere-major-mode ()
   "Determine major mode based on context."
