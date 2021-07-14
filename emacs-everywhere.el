@@ -99,6 +99,16 @@ Formatted with the app name, and truncated window name."
   :type 'hook
   :group 'emacs-everywhere)
 
+(defcustom emacs-everywhere-non-init-hooks
+  '(emacs-everywhere-set-frame-name
+    emacs-everywhere-set-frame-position
+    emacs-everywhere-major-mode
+    emacs-everywhere-remove-trailing-whitespace
+    emacs-everywhere-init-spell-check)
+  "Hooks to be run before function `emacs-everywhere-mode'."
+  :type 'hook
+  :group 'emacs-everywhere)
+
 (defcustom emacs-everywhere-determine-mode-alist
   (list
    (cons (lambda () (and (not emacs-everywhere-force-use-org-mode)
@@ -186,14 +196,20 @@ This matches FILE against `emacs-everywhere-file-patterns'."
   "Entry point for the executable.
 APP is an `emacs-everywhere-app' struct."
   (let ((file (buffer-file-name (buffer-base-buffer))))
-   (when (and file (emacs-everywhere-file-p file))
-    (let ((app (or (frame-parameter nil 'emacs-everywhere-app)
-                   (emacs-everywhere-app-info))))
-      (setq-local emacs-everywhere-current-app app)
-      (with-demoted-errors "Emacs Everywhere: error running init hooks, %s"
-        (run-hooks 'emacs-everywhere-init-hooks))
-      (emacs-everywhere-mode 1)
-      (setq emacs-everywhere--contents (buffer-string))))))
+    (when file
+      (let ((app (or (frame-parameter nil 'emacs-everywhere-app)
+                     (emacs-everywhere-app-info))))
+        (setq-local emacs-everywhere-current-app app)
+        (if (emacs-everywhere-file-p file)
+            (progn
+              (with-demoted-errors "Emacs Everywhere: error running init hooks, %s"
+                (run-hooks 'emacs-everywhere-init-hooks))
+              (emacs-everywhere-mode 1)
+              (setq emacs-everywhere--contents (buffer-string)))
+          (with-demoted-errors "Emacs Everywhere: error running init hooks, %s"
+            (run-hooks 'emacs-everywhere-non-init-hooks))
+          (dolist (hook emacs-everywhere-final-hooks)
+            (add-hook 'kill-buffer-hook hook nil t)))))))
 
 ;;;###autoload
 (add-hook 'server-visit-hook #'emacs-everywhere-initialise)
