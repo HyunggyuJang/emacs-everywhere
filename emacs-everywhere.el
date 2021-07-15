@@ -103,6 +103,7 @@ Formatted with the app name, and truncated window name."
   '(emacs-everywhere-set-frame-name
     emacs-everywhere-set-frame-position
     emacs-everywhere-major-mode
+    emacs-everywhere-non-insert-selection
     emacs-everywhere-remove-trailing-whitespace
     emacs-everywhere-init-spell-check)
   "Hooks to be run before function `emacs-everywhere-mode'."
@@ -444,6 +445,14 @@ return windowTitle"))
     (set-frame-position (selected-frame)
                         (- x 100)
                         (- y 50))))
+
+(defun emacs-everywhere-non-insert-selection ()
+  (when (and (eq major-mode 'org-mode)
+             (emacs-everywhere-markdown-p)
+             (executable-find "pandoc"))
+    (shell-command-on-region (point-min) (point-max)
+                             "pandoc -f markdown-auto_identifiers -t org" nil t)
+    (deactivate-mark) (goto-char (point-max))))
 
 (defun emacs-everywhere-insert-selection ()
   "Insert the last text selection into the buffer."
