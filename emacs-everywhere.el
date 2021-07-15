@@ -212,6 +212,7 @@ APP is an `emacs-everywhere-app' struct."
           (setq emacs-everywhere--contents (buffer-string)))
       (with-demoted-errors "Emacs Everywhere: error running init hooks, %s"
         (run-hooks 'emacs-everywhere-non-init-hooks))
+      (run-hooks 'emacs-everywhere-mode-hook)
       (dolist (hook emacs-everywhere-final-hooks)
         (add-hook 'before-save-hook hook 95 t)))))
 
