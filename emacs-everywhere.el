@@ -195,7 +195,7 @@ This matches FILE against `emacs-everywhere-file-patterns'."
 (defun emacs-everywhere-initialise ()
   "Entry point for the executable.
 APP is an `emacs-everywhere-app' struct."
-  (when-let ((manage? (pcase (buffer-file-name (buffer-base-buffer))
+  (when-let ((manage? (pcase (file-name-base (buffer-file-name (buffer-base-buffer)))
                         ((pred (string-prefix-p "tmp_"))
                          'tmp)
                         ((pred (emacs-everywhere-file-p))
