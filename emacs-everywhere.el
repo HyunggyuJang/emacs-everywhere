@@ -195,21 +195,25 @@ This matches FILE against `emacs-everywhere-file-patterns'."
 (defun emacs-everywhere-initialise ()
   "Entry point for the executable.
 APP is an `emacs-everywhere-app' struct."
-  (let ((file (buffer-file-name (buffer-base-buffer))))
-    (when file
-      (let ((app (or (frame-parameter nil 'emacs-everywhere-app)
-                     (emacs-everywhere-app-info))))
-        (setq-local emacs-everywhere-current-app app)
-        (if (emacs-everywhere-file-p file)
-            (progn
-              (with-demoted-errors "Emacs Everywhere: error running init hooks, %s"
-                (run-hooks 'emacs-everywhere-init-hooks))
-              (emacs-everywhere-mode 1)
-              (setq emacs-everywhere--contents (buffer-string)))
+  (when-let* ((file (buffer-file-name (buffer-base-buffer)))
+              (manage? (pcase file
+                         ((pred (string-prefix-p "tmp_"))
+                          'tmp)
+                         ((pred (emacs-everywhere-file-p))
+                          'everywhere)))
+              (app (or (frame-parameter nil 'emacs-everywhere-app)
+                       (emacs-everywhere-app-info))))
+    (setq-local emacs-everywhere-current-app app)
+    (if (eq manage? 'everywhere)
+        (progn
           (with-demoted-errors "Emacs Everywhere: error running init hooks, %s"
-            (run-hooks 'emacs-everywhere-non-init-hooks))
-          (dolist (hook emacs-everywhere-final-hooks)
-            (add-hook 'kill-buffer-hook hook nil t)))))))
+            (run-hooks 'emacs-everywhere-init-hooks))
+          (emacs-everywhere-mode 1)
+          (setq emacs-everywhere--contents (buffer-string)))
+      (with-demoted-errors "Emacs Everywhere: error running init hooks, %s"
+        (run-hooks 'emacs-everywhere-non-init-hooks))
+      (dolist (hook emacs-everywhere-final-hooks)
+        (add-hook 'kill-buffer-hook hook nil t)))))
 
 ;;;###autoload
 (add-hook 'server-visit-hook #'emacs-everywhere-initialise)
