@@ -92,9 +92,7 @@ Formatted with the app name, and truncated window name."
   '(emacs-everywhere-set-frame-name
     emacs-everywhere-set-frame-position
     emacs-everywhere-major-mode
-    emacs-everywhere-insert-selection
-    emacs-everywhere-remove-trailing-whitespace
-    emacs-everywhere-init-spell-check)
+    emacs-everywhere-insert-selection)
   "Hooks to be run before function `emacs-everywhere-mode'."
   :type 'hook
   :group 'emacs-everywhere)
@@ -103,9 +101,7 @@ Formatted with the app name, and truncated window name."
   '(emacs-everywhere-set-frame-name
     emacs-everywhere-set-frame-position
     emacs-everywhere-major-mode
-    emacs-everywhere-non-insert-selection
-    emacs-everywhere-remove-trailing-whitespace
-    emacs-everywhere-init-spell-check)
+    emacs-everywhere-non-insert-selection)
   "Hooks to be run before function `emacs-everywhere-mode'."
   :type 'hook
   :group 'emacs-everywhere)
@@ -123,8 +119,7 @@ Formatted with the app name, and truncated window name."
   :group 'emacs-everywhere)
 
 (defcustom emacs-everywhere-final-hooks
-  '(emacs-everywhere-remove-trailing-whitespace
-    emacs-everywhere-return-converted-org-to-gfm)
+  '(emacs-everywhere-return-converted-org-to-gfm)
   "Hooks to be run just before content is copied."
   :type 'hook
   :group 'emacs-everywhere)
@@ -214,7 +209,8 @@ APP is an `emacs-everywhere-app' struct."
         (run-hooks 'emacs-everywhere-non-init-hooks))
       (run-hooks 'emacs-everywhere-mode-hook)
       (dolist (hook emacs-everywhere-final-hooks)
-        (add-hook 'before-save-hook hook 95 t)))))
+        (add-hook 'kill-buffer-hook hook 0 t) ;make sure come before server-kill-buffer function
+        ))))
 
 ;;;###autoload
 (add-hook 'server-visit-hook #'emacs-everywhere-initialise)
@@ -434,12 +430,6 @@ return windowTitle"))
             (emacs-everywhere-app-title emacs-everywhere-current-app)
             45 nil nil "…"))))
 
-(defun emacs-everywhere-remove-trailing-whitespace ()
-  "Move point to the end of the buffer, and remove all trailing whitespace."
-  (goto-char (max-char))
-  (delete-trailing-whitespace)
-  (delete-char (- (skip-chars-backward "\n"))))
-
 (defun emacs-everywhere-set-frame-position ()
   "Set the size and position of the emacs-everywhere frame."
   (cl-destructuring-bind (x . y) (mouse-absolute-pixel-position)
@@ -473,11 +463,6 @@ return windowTitle"))
                              "pandoc -f markdown-auto_identifiers -t org" nil t)
     (deactivate-mark) (goto-char (point-max)))
   (cond ((bound-and-true-p evil-local-mode) (evil-insert-state))))
-
-(defun emacs-everywhere-init-spell-check ()
-  "Run a spell check function on the buffer, using a relevant enabled mode."
-  (cond ((bound-and-true-p spell-fu-mode) (spell-fu-buffer))
-        ((bound-and-true-p flyspell-mode) (flyspell-buffer))))
 
 (defun emacs-everywhere-markdown-p ()
   "Return t if the original window is recognised as markdown-flavoured."
