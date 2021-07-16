@@ -209,7 +209,7 @@ APP is an `emacs-everywhere-app' struct."
         (run-hooks 'emacs-everywhere-non-init-hooks))
       (run-hooks 'emacs-everywhere-mode-hook)
       (dolist (hook emacs-everywhere-final-hooks)
-        (add-hook 'kill-buffer-hook hook 0 t) ;make sure come before server-kill-buffer function
+        (add-hook 'before-save-hook hook 90 t)
         ))))
 
 ;;;###autoload
