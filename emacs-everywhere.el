@@ -9,7 +9,7 @@
 ;; Version: 0.0.1
 ;; Keywords: conenience, frames
 ;; Homepage: https://github.com/tecosaur/emacs-everywhere
-;; Package-Requires: ((emacs "26.3") (cl-lib "0.5"))
+;; Package-Requires: ((emacs "26.3"))
 
 ;;; License:
 
@@ -23,6 +23,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'server)
 
 (defgroup emacs-everywhere ()
   "Customise group for Emacs-everywhere."
@@ -50,31 +51,31 @@ Patterns which are matched against the app name."
   :type '(rep string)
   :group 'emacs-everywhere)
 
-(defcustom emacs-everywhere-latex-windows
-  '("Inkscape")
-  "For use with `emacs-everywhere-latex-p'.
-Patterns which are matched against the window title."
-  :type '(rep string)
-  :group 'emacs-everywhere)
+;; (defcustom emacs-everywhere-latex-windows
+;;   '("Inkscape")
+;;   "For use with `emacs-everywhere-latex-p'.
+;; Patterns which are matched against the window title."
+;;   :type '(rep string)
+;;   :group 'emacs-everywhere)
 
-(defcustom emacs-everywhere-latex-apps
-  '("Inkscape")
-  "For use with `emacs-everywhere-latex-p'.
-Patterns which are matched against the app name."
-  :type '(rep string)
-  :group 'emacs-everywhere)
+;; (defcustom emacs-everywhere-latex-apps
+;;   '("Inkscape")
+;;   "For use with `emacs-everywhere-latex-p'.
+;; Patterns which are matched against the app name."
+;;   :type '(rep string)
+;;   :group 'emacs-everywhere)
 
-(defcustom emacs-everywhere-latex-preamble
-  "\\documentclass[12pt,border=12pt]{standalone}
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\usepackage{textcomp}
-\\usepackage{amsmath, amssymb}
-\\newcommand{\\R}{\\mathbb R}
-\\begin{document}"
-  "Latex preamble for pdf end result."
-  :type 'string
-  :group 'emacs-everywhere)
+;; (defcustom emacs-everywhere-latex-preamble
+;;   "\\documentclass[12pt,border=12pt]{standalone}
+;; \\usepackage[utf8]{inputenc}
+;; \\usepackage[T1]{fontenc}
+;; \\usepackage{textcomp}
+;; \\usepackage{amsmath, amssymb}
+;; \\newcommand{\\R}{\\mathbb R}
+;; \\begin{document}"
+;;   "Latex preamble for pdf end result."
+;;   :type 'string
+;;   :group 'emacs-everywhere)
 
 (defcustom emacs-everywhere-force-use-org-mode nil
   "Whether use `org-mode' as editiong mode or not.
@@ -111,8 +112,8 @@ Formatted with the app name, and truncated window name."
    (cons (lambda () (and (not emacs-everywhere-force-use-org-mode)
                          (fboundp 'markdown-mode)
                          (emacs-everywhere-markdown-p))) 'markdown-mode)
-   (cons (lambda () (and (fboundp 'latex-mode)
-                         (emacs-everywhere-latex-p))) 'latex-mode)
+   ;; (cons (lambda () (and (fboundp 'latex-mode)
+   ;;                       (emacs-everywhere-latex-p))) 'latex-mode)
    (cons (lambda () t) #'org-mode))
   "List to determine major mode for emacs-everywhere."
   :type 'list
@@ -209,8 +210,7 @@ APP is an `emacs-everywhere-app' struct."
         (run-hooks 'emacs-everywhere-non-init-hooks))
       (run-hooks 'emacs-everywhere-mode-hook)
       (dolist (hook emacs-everywhere-final-hooks)
-        (add-hook 'before-save-hook hook 90 t)
-        ))))
+        (add-hook 'before-save-hook hook 90 t)))))
 
 ;;;###autoload
 (add-hook 'server-visit-hook #'emacs-everywhere-initialise)
@@ -475,16 +475,16 @@ return windowTitle"))
                    (string-match-p pattern class))
                  emacs-everywhere-markdown-apps))))
 
-(defun emacs-everywhere-latex-p ()
-  "Return t if the original window is recognised as markdown-flavoured."
-  (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
-        (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
-    (or (cl-some (lambda (pattern)
-                   (string-match-p pattern title))
-                 emacs-everywhere-latex-windows)
-        (cl-some (lambda (pattern)
-                   (string-match-p pattern class))
-                 emacs-everywhere-latex-apps))))
+;; (defun emacs-everywhere-latex-p ()
+;;   "Return t if the original window is recognised as markdown-flavoured."
+;;   (let ((title (emacs-everywhere-app-title emacs-everywhere-current-app))
+;;         (class (emacs-everywhere-app-class emacs-everywhere-current-app)))
+;;     (or (cl-some (lambda (pattern)
+;;                    (string-match-p pattern title))
+;;                  emacs-everywhere-latex-windows)
+;;         (cl-some (lambda (pattern)
+;;                    (string-match-p pattern class))
+;;                  emacs-everywhere-latex-apps))))
 
 (defun emacs-everywhere-major-mode ()
   "Determine major mode based on context."
@@ -511,19 +511,19 @@ Should end in a newline to avoid interfering with the buffer content."
     (let (org-export-show-temporary-export-buffer)
       (org-export-to-buffer (if (featurep 'ox-gfm) 'gfm 'md) (current-buffer)))))
 
-(defun emacs-everywhere-return-converted-latex-to-svg ()
-  "When appropriate, convert org buffer to markdown."
-  (when (emacs-everywhere-latex-p)
-    (goto-char (point-min))
-    (insert emacs-everywhere-latex-preamble)
-    (goto-char (point-max))
-    (insert "\n\\end{document}")
-    (save-buffer)
-    (let ((tname buffer-file-name))
-      (call-process "pdflatex" nil  nil nil tname)
-      (call-process "pdf2svg" nil  nil nil (concat tname ".pdf") (concat tname ".svg"))
-      (erase-buffer)
-      (insert-file-contents (concat tname ".svg")))))
+;; (defun emacs-everywhere-return-converted-latex-to-svg ()
+;;   "When appropriate, convert org buffer to markdown."
+;;   (when (emacs-everywhere-latex-p)
+;;     (goto-char (point-min))
+;;     (insert emacs-everywhere-latex-preamble)
+;;     (goto-char (point-max))
+;;     (insert "\n\\end{document}")
+;;     (save-buffer)
+;;     (let ((tname buffer-file-name))
+;;       (call-process "pdflatex" nil  nil nil tname)
+;;       (call-process "pdf2svg" nil  nil nil (concat tname ".pdf") (concat tname ".svg"))
+;;       (erase-buffer)
+;;       (insert-file-contents (concat tname ".svg")))))
 
 (provide 'emacs-everywhere)
 ;;; emacs-everywhere.el ends here
