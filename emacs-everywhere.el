@@ -32,9 +32,11 @@
 (define-obsolete-variable-alias
   'emacs-everywhere-paste-p 'emacs-everywhere-paste-command "0.1.0")
 
+(defvar emacs-everywhere--spacehammer-hs (executable-find "hs"))
+
 (defvar emacs-everywhere--display-server
   (cond
-   ((eq system-type 'darwin) 'quartz)
+   ((eq system-type 'darwin) (if emacs-everywhere--spacehammer-hs 'spacehammer 'quartz))
    ((memq system-type '(ms-dos windows-nt cygwin)) 'windows)
    ((executable-find "loginctl")
     (pcase (string-trim
@@ -48,6 +50,7 @@
 
 (defcustom emacs-everywhere-paste-command
   (pcase emacs-everywhere--display-server
+    ('spacehammer)
     ('quartz (list "osascript" "-e" "tell application \"System Events\" to keystroke \"v\" using command down"))
     ('x11 (list "xdotool" "key" "--clearmodifiers" "Shift+Insert"))
     ((or 'wayland 'unknown)
@@ -61,26 +64,10 @@ To not run any command, set to nil."
   :type '(set (repeat string) (const nil))
   :group 'emacs-everywhere)
 
-(defcustom emacs-everywhere-copy-command
-  (pcase emacs-everywhere--display-server
-    ('x11 (list "xclip" "-selection" "clipboard" "%f"))
-    ((and 'wayland (guard (executable-find "wl-copy")))
-     (list "sh" "-c" "wl-copy < %f")))
-  "Command to write to the system clipboard from a file (%f).
-This is given as a list in the form (CMD ARGS...).
-In the arguments, \"%f\" is treated as a placeholder for the path
-to the file.
-
-When nil, nothing is executed.
-
-`gui-select-text' is always called on the buffer content, however experience
-suggests that this can be somewhat flakey, and so an extra step to make sure
-it worked can be a good idea."
-  :type '(set (repeat string) (const nil))
-  :group 'emacs-everywhere)
-
 (defcustom emacs-everywhere-window-focus-command
   (pcase emacs-everywhere--display-server
+    ('spacehammer (list emacs-everywhere--spacehammer-hs "-c"
+                        "require(\"emacs\").switchToAppAndPasteFromClipboard (\"%w\"\)"))
     ('quartz (list "osascript" "-e" "tell application \"%w\" to activate"))
     ('x11 (list "xdotool" "windowactivate" "--sync" "%w")))
   "Command to refocus the active window when emacs-everywhere was triggered.
@@ -236,9 +223,9 @@ Formatted with the app name, and truncated window name."
 ;;; Primary functionality
 
 ;;;###autoload
-(defun emacs-everywhere (&optional file line column)
+(defun emacs-everywhere (&optional app-info file line column)
   "Lanuch the emacs-everywhere frame from emacsclient."
-  (let ((app-info (emacs-everywhere-app-info)))
+  (let ((app-info (or app-info (emacs-everywhere-app-info))))
     (apply #'call-process "emacsclient" nil 0 nil
            (delq
             nil (list
@@ -340,23 +327,15 @@ Never paste content when ABORT is non-nil."
       (setq abort t))
     (unless abort
       (run-hooks 'emacs-everywhere-final-hooks)
-      (gui-select-text (buffer-string))
-      (when emacs-everywhere-copy-command ; handle clipboard finicklyness
-        (let ((inhibit-message t)
-              (require-final-newline nil)
-              write-file-functions)
-          (write-file buffer-file-name)
-          (apply #'call-process (car emacs-everywhere-copy-command)
-                 nil nil nil
-                 (mapcar (lambda (arg)
-                           (replace-regexp-in-string "%f" buffer-file-name arg))
-                         (cdr emacs-everywhere-copy-command))))))
-    (sleep-for 0.01) ; prevents weird multi-second pause, lets clipboard info propagate
+      (clipboard-kill-ring-save (point-min) (point-max)))
+    (unless emacs-everywhere--spacehammer-hs
+      (sleep-for 0.01) ; prevents weird multi-second pause, lets clipboard info propagate
+      )
     (when emacs-everywhere-window-focus-command
       (let* ((window-id (emacs-everywhere-app-id emacs-everywhere-current-app))
              (window-id-str (if (numberp window-id) (number-to-string window-id) window-id)))
         (apply #'call-process (car emacs-everywhere-window-focus-command)
-               nil nil nil
+               nil 0 nil
                (mapcar (lambda (arg)
                          (replace-regexp-in-string "%w" window-id-str arg))
                        (cdr emacs-everywhere-window-focus-command)))
@@ -367,7 +346,7 @@ Never paste content when ABORT is non-nil."
                    emacs-everywhere-paste-command
                    (not abort))
           (apply #'call-process (car emacs-everywhere-paste-command)
-                 nil nil nil (cdr emacs-everywhere-paste-command)))))
+                 nil 0 nil (cdr emacs-everywhere-paste-command)))))
     ;; Clean up after ourselves in case the buffer survives `server-buffer-done'
     ;; (b/c `server-existing-buffer' is non-nil).
     (emacs-everywhere-mode -1)
@@ -383,9 +362,21 @@ Never paste content when ABORT is non-nil."
 
 (cl-defstruct emacs-everywhere-app
   "Metadata about the last focused window before emacs-everywhere was invoked."
-  id class title geometry)
+  id class title)
 
-(defun emacs-everywhere-app-info ()
+(defun emacs-everywhere--app-info (id app title)
+  "Return information on the active window."
+  (make-emacs-everywhere-app
+   :id id
+   :class app
+   :title (replace-regexp-in-string
+           (format " ?-[A-Za-z0-9 ]*%s"
+                   (regexp-quote app))
+           ""
+           (replace-regexp-in-string
+            "[^[:ascii:]]+" "-" title))))
+
+(defun emacs-everywhere-app-info (&optional id app title)
   "Return information on the active window."
   (let ((w (pcase system-type
              (`darwin (emacs-everywhere-app-info-osx))
@@ -423,32 +414,11 @@ Please go to 'System Preferences > Security & Privacy > Privacy > Accessibility'
            (car (split-string-and-unquote
                  (string-trim-left
                   (emacs-everywhere-call "xprop" "-id" window-id "_NET_WM_NAME")
-                  "[^ ]+ = "))))
-          (window-geometry
-           (let ((info (mapcar (lambda (line)
-                                 (split-string line ":" nil "[ \t]+"))
-                               (split-string
-                                (emacs-everywhere-call "xwininfo" "-id" window-id) "\n"))))
-             (mapcar #'string-to-number
-                     (list (cadr (assoc "Absolute upper-left X" info))
-                           (cadr (assoc "Absolute upper-left Y" info))
-                           (cadr (assoc "Relative upper-left X" info))
-                           (cadr (assoc "Relative upper-left Y" info))
-                           (cadr (assoc "Width" info))
-                           (cadr (assoc "Height" info)))))))
+                  "[^ ]+ = ")))))
       (make-emacs-everywhere-app
        :id (string-to-number window-id)
        :class app-name
-       :title window-title
-       :geometry (list
-                  (if (= (nth 0 window-geometry) (nth 2 window-geometry))
-                      (nth 0 window-geometry)
-                    (- (nth 0 window-geometry) (nth 2 window-geometry)))
-                  (if (= (nth 1 window-geometry) (nth 3 window-geometry))
-                      (nth 1 window-geometry)
-                    (- (nth 1 window-geometry) (nth 3 window-geometry)))
-                  (nth 4 window-geometry)
-                  (nth 5 window-geometry))))))
+       :title window-title))))
 
 (defvar emacs-everywhere--dir (file-name-directory load-file-name))
 
@@ -459,22 +429,16 @@ Please go to 'System Preferences > Security & Privacy > Privacy > Accessibility'
     (let ((app-name (emacs-everywhere-call
                      "osascript" "app-name"))
           (window-title (emacs-everywhere-call
-                         "osascript" "window-title"))
-          (window-geometry (mapcar #'string-to-number
-                                   (split-string
-                                    (emacs-everywhere-call
-                                     "osascript" "window-geometry") ", "))))
+                         "osascript" "window-title")))
       (make-emacs-everywhere-app
        :id app-name
        :class app-name
-       :title window-title
-       :geometry window-geometry))))
+       :title window-title))))
 
 (defun emacs-everywhere-ensure-oscascript-compiled (&optional force)
   "Ensure that compiled oscascript files are present.
 Will always compile when FORCE is non-nil."
   (unless (and (file-exists-p "app-name")
-               (file-exists-p "window-geometry")
                (file-exists-p "window-title")
                (not force))
     (let ((default-directory emacs-everywhere--dir)
@@ -483,13 +447,6 @@ Will always compile when FORCE is non-nil."
     set frontAppName to name of first application process whose frontmost is true
 end tell
 return frontAppName")
-          (window-geometry
-           "tell application \"System Events\"
-     set frontWindow to front window of (first application process whose frontmost is true)
-     set windowPosition to (get position of frontWindow)
-     set windowSize to (get size of frontWindow)
-end tell
-return windowPosition & windowSize")
           (window-title
            "set windowTitle to \"\"
 tell application \"System Events\"
@@ -502,7 +459,6 @@ tell frontAppProcess
 end tell
 return windowTitle"))
       (dolist (script `(("app-name" . ,app-name)
-                        ("window-geometry" . ,window-geometry)
                         ("window-title" . ,window-title)))
         (write-region (cdr script) nil (concat (car script) ".applescript"))
         (shell-command (format "osacompile -r scpt:128 -t osas -o %s %s"
@@ -536,15 +492,17 @@ return windowTitle"))
 
 (defun emacs-everywhere-insert-selection ()
   "Insert the last text selection into the buffer."
-  (if (eq system-type 'darwin)
-      (progn
-        (call-process "osascript" nil nil nil
-                      "-e" "tell application \"System Events\" to keystroke \"c\" using command down")
-        (sleep-for 0.01) ; lets clipboard info propagate
-        (yank))
-    (when-let ((selection (gui-get-selection 'PRIMARY 'UTF8_STRING)))
-      (gui-backend-set-selection 'PRIMARY "")
-      (insert selection)))
+  (cond
+   (emacs-everywhere--spacehammer-hs (clipboard-yank))
+   ((eq system-type 'darwin)
+    (progn
+      (call-process "osascript" nil nil nil
+                    "-e" "tell application \"System Events\" to keystroke \"c\" using command down")
+      (sleep-for 0.01) ; lets clipboard info propagate
+      (yank)))
+   (_ (when-let ((selection (gui-get-selection 'PRIMARY 'UTF8_STRING)))
+        (gui-backend-set-selection 'PRIMARY "")
+        (insert selection))))
   (when (and (eq major-mode 'org-mode)
              (emacs-everywhere-markdown-p)
              (executable-find "pandoc"))
