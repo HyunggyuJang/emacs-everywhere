@@ -67,7 +67,7 @@ To not run any command, set to nil."
 (defcustom emacs-everywhere-window-focus-command
   (pcase emacs-everywhere--display-server
     ('spacehammer (list emacs-everywhere--spacehammer-hs "-c"
-                        "require(\"emacs\").switchToAppAndPasteFromClipboard (\"%w\"\)"))
+                        "require(\"emacs\").switchToAppAndPasteFromClipboard (\"%w\")"))
     ('quartz (list "osascript" "-e" "tell application \"%w\" to activate"))
     ('x11 (list "xdotool" "windowactivate" "--sync" "%w")))
   "Command to refocus the active window when emacs-everywhere was triggered.
@@ -193,9 +193,18 @@ Formatted with the app name, and truncated window name."
   :type '(repeat regexp)
   :group 'emacs-everywhere)
 
-(defcustom emacs-everywhere-finish-delay 0.02
-  "Delay for the clipboard contents to be properly set in `emacs-everywhere-finish'."
-  :type 'float
+(defun emacs-everywhere-temp-filename (app-info)
+  "Generate a temp file."
+  (concat "emacs-everywhere-"
+          (format-time-string "%Y%m%d-%H%M%S-" (current-time))
+          (emacs-everywhere-app-class app-info)))
+
+(defcustom emacs-everywhere-filename-function
+  #'emacs-everywhere-temp-filename
+  "A function which generates a file name for the buffer.
+The function is passed the result of `emacs-everywhere-app-info'.
+Make sure that it will be matched by `emacs-everywhere-file-patterns'."
+  :type 'function
   :group 'emacs-everywhere)
 
 ;; Semi-internal variables
