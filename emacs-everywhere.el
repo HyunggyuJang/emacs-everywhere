@@ -67,7 +67,7 @@ To not run any command, set to nil."
 (defcustom emacs-everywhere-window-focus-command
   (pcase emacs-everywhere--display-server
     ('spacehammer (list emacs-everywhere--spacehammer-hs "-c"
-                        "require(\"emacs\").switchToAppAndPasteFromClipboard (\"%w\")"))
+                        "switchToAppAndPasteFromClipboard (%w)"))
     ('quartz (list "osascript" "-e" "tell application \"%w\" to activate"))
     ('x11 (list "xdotool" "windowactivate" "--sync" "%w")))
   "Command to refocus the active window when emacs-everywhere was triggered.
